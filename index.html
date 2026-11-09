@@ -1,0 +1,152 @@
+zaddy
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Sensor</title>
+<style>
+  :root {
+    --bg: #f5f7f6;
+    --surface: #ffffff;
+    --text: #1b2421;
+    --muted: #5d6b66;
+    --line: #dbe3df;
+    --accent: #0f766e;
+    --error: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121a17;
+      --surface: #1a2420;
+      --text: #e6efeb;
+      --muted: #94a69f;
+      --line: #2c3a35;
+      --accent: #2dd4bf;
+      --error: #f97066;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 1.4rem; margin: 0; }
+  button {
+    font: inherit;
+    padding: 8px 14px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  button:disabled { opacity: .6; cursor: wait; }
+  #status { color: var(--muted); font-size: .9rem; margin: 0 0 12px; min-height: 1.4em; }
+  #status.error { color: var(--error); }
+  .wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--muted); font-size: .9rem; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Data sensor</h1>
+    <button id="refresh" type="button">Muat ulang</button>
+  </header>
+  <p id="status" role="status">Memuat data…</p>
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="num">ID</th>
+          <th class="num">Suhu</th>
+          <th class="num">Kelembapan</th>
+          <th class="num">Time</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  // GANTI nilai key di bawah dengan PUBLISHABLE key (sb_publishable_...) atau anon key.
+  // JANGAN pakai secret key / service_role di file HTML.
+  const SUPABASE_URL = "https://oclpphghaezeozddfmjb.supabase.co";
+  const PUBLISHABLE_KEY = "sb_publishable_MwO-g-_WSThG3UjGcn1BLg_Tgc2AW6q";
+  const TABLE = "device";
+
+  const rowsEl = document.getElementById("rows");
+  const statusEl = document.getElementById("status");
+  const btn = document.getElementById("refresh");
+
+  function setStatus(text, isError) {
+    statusEl.textContent = text;
+    statusEl.className = isError ? "error" : "";
+  }
+
+  function render(data) {
+    rowsEl.innerHTML = "";
+    if (!data.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 3;
+      td.textContent = "Belum ada data. Kirim data lewat endpoint insert.";
+      tr.appendChild(td);
+      rowsEl.appendChild(tr);
+      return;
+    }
+    for (const item of data) {
+      const tr = document.createElement("tr");
+      for (const key of ["id", "temp", "hum", "millis"]) {
+        const td = document.createElement("td");
+        td.className = "num";
+        td.textContent = item[key] ?? "";
+        tr.appendChild(td);
+      }
+      rowsEl.appendChild(tr);
+    }
+  }
+
+  async function loadData() {
+    btn.disabled = true;
+    setStatus("Memuat data…");
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=id.desc&limit=50`;
+      const headers = { apikey: PUBLISHABLE_KEY };
+      // Hanya untuk anon key lama (eyJ...). Key sb_publishable_ tidak perlu header ini.
+      if (PUBLISHABLE_KEY.startsWith("eyJ")) headers.Authorization = "Bearer " + PUBLISHABLE_KEY;
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Status ${res.status}: ${body}`);
+      }
+      const data = await res.json();
+      render(data);
+      setStatus(`${data.length} data, diperbarui ${new Date().toLocaleTimeString("id-ID")}`);
+    } catch (err) {
+      setStatus("Gagal memuat data. " + err.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener("click", loadData);
+  loadData();
+  setInterval(loadData, 10000); // otomatis refresh tiap 10 detik
+</script>
+</body>
+</html>
