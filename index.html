@@ -1,4 +1,3 @@
-zaddy
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -97,6 +96,21 @@ zaddy
     statusEl.className = isError ? "error" : "";
   }
 
+  function millisToDateTime(timestamp) {
+    const date = new Date(Number(timestamp));
+
+    return new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+
   function render(data) {
     rowsEl.innerHTML = "";
     if (!data.length) {
@@ -110,6 +124,7 @@ zaddy
     }
     for (const item of data) {
       const tr = document.createElement("tr");
+      item["millis"] = millisToDateTime(item["millis"]);
       for (const key of ["id", "temp", "hum", "millis"]) {
         const td = document.createElement("td");
         td.className = "num";
